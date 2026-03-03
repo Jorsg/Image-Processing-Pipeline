@@ -1,0 +1,73 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "storageAccountName": {
+      "type": "string",
+      "metadata": { "description": "Name of the Azure Storage account." }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts/managementPolicies",
+      "apiVersion": "2021-09-01",
+      "name": "[concat(parameters('storageAccountName'), '/default')]",
+      "properties": {
+        "policy": {
+          "rules": [
+            {
+              "name": "delete-old-originals",
+              "enabled": true,
+              "type": "Lifecycle",
+              "definition": {
+                "filters": {
+                  "blobTypes": ["blockBlob"],
+                  "prefixMatch": ["images/"]
+                },
+                "actions": {
+                  "baseBlob": {
+                    "tierToCool": { "daysAfterModificationGreaterThan": 30 },
+                    "tierToArchive": { "daysAfterModificationGreaterThan": 90 },
+                    "delete": { "daysAfterModificationGreaterThan": 365 }
+                  }
+                }
+              }
+            },
+            {
+              "name": "delete-old-resized",
+              "enabled": true,
+              "type": "Lifecycle",
+              "definition": {
+                "filters": {
+                  "blobTypes": ["blockBlob"],
+                  "prefixMatch": ["images-resized/"]
+                },
+                "actions": {
+                  "baseBlob": {
+                    "delete": { "daysAfterModificationGreaterThan": 90 }
+                  }
+                }
+              }
+            },
+            {
+              "name": "delete-old-thumbnails",
+              "enabled": true,
+              "type": "Lifecycle",
+              "definition": {
+                "filters": {
+                  "blobTypes": ["blockBlob"],
+                  "prefixMatch": ["thumbnails/"]
+                },
+                "actions": {
+                  "baseBlob": {
+                    "delete": { "daysAfterModificationGreaterThan": 90 }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
