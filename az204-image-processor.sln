@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "az204-image-processor", "az204-image-processor.csproj", "{42D7B445-FC69-2249-A28E-F6DB7B49AD88}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{42D7B445-FC69-2249-A28E-F6DB7B49AD88}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{42D7B445-FC69-2249-A28E-F6DB7B49AD88}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{42D7B445-FC69-2249-A28E-F6DB7B49AD88}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{42D7B445-FC69-2249-A28E-F6DB7B49AD88}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4718D1A5-02AC-4BBC-8E01-12BFF36DAAAB}
+	EndGlobalSection
+EndGlobal
