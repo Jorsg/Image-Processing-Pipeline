@@ -8,6 +8,8 @@ using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Processing;
 using Image = SixLabors.ImageSharp.Image;
+using System.Formats.Asn1;
+using System.Security.AccessControl;
 
 namespace az204_image_processor.Services
 {
@@ -26,20 +28,39 @@ namespace az204_image_processor.Services
 
             using var image = await Image.LoadAsync(inputstream);
 
-            //image.Mutate(x=>x.Resize(new ResizeOptions));   
+            image.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Mode = ResizeMode.Crop,
+                Size = new Size(width, height),
+                Position = AnchorPositionMode.Center
+            }));
 
-             throw new NotImplementedException(); 
+            _logger.LogInformation("🖼️ Thumbnail generated: {Width}x{Height}", image.Width, image.Height);
+
+            using var outputStream = new MemoryStream();
+            await image.SaveAsync(outputStream, new JpegEncoder { Quality = 75 });
+            return outputStream.ToArray();
         }
 
-        public Task<Models.ImageInfo> GetImageInfoAsync(Stream inputStream)
+        public async Task<Models.ImageInfo> GetImageInfoAsync(Stream inputStream)
         {
-            throw new NotImplementedException();
+            if (inputStream.CanSeek)
+                inputStream.Position = 0;
+
+            var imageInfo = await Image.IdentifyAsync(inputStream);    
+            return new Models.ImageInfo
+            {
+                OriginalWidth = imageInfo.Width,
+                OriginalHeight = imageInfo.Height,
+                Format = imageInfo.Metadata.DecodedImageFormat?.Name ?? "Unknown",
+                FileSizeBytes = inputStream.Length
+            };
         }
 
         public async Task<byte[]> ResizeImageAsync(Stream inputStream, int maxWidth, int maxHeight, int quality = 80)
         {
             using var image = await Image.LoadAsync(inputStream);
-            _logger.LogInformation($"Original size: {image.Width} X {image.Height}");
+            _logger.LogInformation("📐 Original size: {Width}x{Height}", image.Width, image.Height);
 
             if (image.Width > maxWidth || image.Height > maxHeight)
             {
@@ -49,7 +70,7 @@ namespace az204_image_processor.Services
                     Size = new Size(maxWidth, maxHeight)
                 }));
 
-                _logger.LogInformation($"Resized to: {image.Width} X {image.Height}");
+                _logger.LogInformation("📐 Resized to: {Width}x{Height}", image.Width, image.Height);
             }
             else
             {
