@@ -1,5 +1,6 @@
 using az204_image_processor.Models;
 using az204_image_processor.Services;
+using Azure.Storage.Blobs;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,8 @@ builder.Services
     .AddApplicationInsightsTelemetryWorkerService()
     .ConfigureFunctionsApplicationInsights()
     .AddSingleton<IImageResizeService, ImageResizeService>()
+    .AddSingleton<IThumbnailService, ThumbnailService>()
+    .AddSingleton<IBlobStorageService, BlobStorageService>()
     .Configure<ImageProcessingOptions>(options =>
     {
         options.MaxFileSizeBytes = long.Parse(Environment.GetEnvironmentVariable("MaxFileSizeBytes") ?? "10485760");
@@ -23,6 +26,11 @@ builder.Services
         options.ThumbnailWidth = int.Parse(Environment.GetEnvironmentVariable("ThumbnailWidth") ?? "150");
         options.ThumbnailHeight = int.Parse(Environment.GetEnvironmentVariable("ThumbnailHeight") ?? "150");
 
+    })
+    .AddSingleton(_ =>
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ImageStorageConnection");
+        return new BlobServiceClient(connectionString);
     })
     .AddHttpClient("CognitiveServices", client =>
      {

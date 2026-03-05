@@ -1,10 +1,7 @@
 using Microsoft.Extensions.Logging;
-using System.IO;
-using System.Threading.Tasks;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.Azure.Functions.Worker;
-using Google.Protobuf;
 using az204_image_processor.Services;
 using az204_image_processor.Models;
 using Microsoft.Extensions.Options;
@@ -16,14 +13,20 @@ namespace az204_image_processor.Functions
         private readonly ILogger<ImageProcessor> _logger;
         private readonly IImageResizeService _resizeService;
         private readonly ImageProcessingOptions _options;
+        private readonly IThumbnailService _thumbnailService;
+        private readonly IBlobStorageService _blobService;
 
         public ImageProcessor(ILogger<ImageProcessor> logger,
         IImageResizeService resizeService,
-        IOptions<ImageProcessingOptions> options)
+        IOptions<ImageProcessingOptions> options,
+        IBlobStorageService blobService,
+        IThumbnailService thumbnailService)
         {
             _logger = logger;
             _options = options.Value;
             _resizeService = resizeService;
+            _blobService = blobService;
+            _thumbnailService = thumbnailService;
         }
 
         [Function("ImageProcessor")]
@@ -47,7 +50,7 @@ namespace az204_image_processor.Functions
 
                 if (inputBlob.Length > _options.MaxFileSizeBytes)
                 {
-                    _logger.LogWarning($"File too large: {name} ({inputBlob.Length} MB) / (1024.0 * 1024.0)");
+                    _logger.LogWarning($"File too large: {name} ({inputBlob.Length / (1024.0 * 1024.0):F2} MB) ");
                     await MoveToPoisonContainerAsync(name, inputBlob);
                     return output;
                 }
@@ -79,15 +82,11 @@ namespace az204_image_processor.Functions
                 // ── Resize: thumbnail ──
                 if (inputBlob.CanSeek) inputBlob.Position = 0;
 
-                output.Thumbnail = await _resizeService
-                    .GenerateThumbnailAsync(
-                        inputBlob,
-                        _options.ThumbnailWidth,
-                        _options.ThumbnailHeight);
+                var thumbnails = await _thumbnailService
+                      .GenerateThumbnailsAsync(inputBlob, name);
 
-                _logger.LogInformation(
-                    "✅ Thumbnail generated: {Size} bytes",
-                    output.Thumbnail.Length);
+                await _blobService.UploadThumbnailsAsync(thumbnails);
+
 
                 // ──────────────────────────────────────
                 // Step 4 will add: Computer Vision API
@@ -95,9 +94,10 @@ namespace az204_image_processor.Functions
                 // ──────────────────────────────────────
 
                 var processingTime = DateTime.UtcNow - startTime;
-                _logger.LogInformation(
-                    "⏱️ Total processing for {Name}: {Time}ms",
-                    name, processingTime.TotalMilliseconds);
+               
+               _logger.LogInformation(
+                    $"Total: {name} completed in {processingTime.TotalMilliseconds}ms | " +
+                    $"Processed: {output.ProcessedImage.Length} bytes | Thumbnails: {thumbnails.Count}");
                 return output;
 
             }
@@ -105,7 +105,7 @@ namespace az204_image_processor.Functions
             {
 
                 _logger.LogError(ex, $" Failed to process blob: {name}");
-                throw; ;
+                throw;
             }
         }
 
@@ -132,9 +132,9 @@ namespace az204_image_processor.Functions
             {
                 Metadata = new Dictionary<string, string>
                {
-                   {"FailureReason", "FileToolager"},
+                   {"FailureReason", "FileToolarge"},
                    {"OriginalContainer","raw-images"},
-                   {"FaileAt",DateTime.UtcNow.ToString("0")}
+                   {"FaileAt",DateTime.UtcNow.ToString("o")}
                }
             });
             _logger.LogWarning($"Moved {blobName} to poison container");
