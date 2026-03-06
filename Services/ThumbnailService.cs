@@ -1,5 +1,6 @@
 using az204_image_processor.Models;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Gif;
 using SixLabors.ImageSharp.Formats.Jpeg;
@@ -15,10 +16,10 @@ namespace az204_image_processor.Services
         private readonly ILogger<ThumbnailService> _logger;
         private readonly ThumbnailOptions _options;
 
-        public ThumbnailService(ILogger<ThumbnailService> logger, ThumbnailOptions options)
+        public ThumbnailService(ILogger<ThumbnailService> logger, IOptions<ThumbnailOptions> options)
         {
             _logger = logger;
-            _options = options;
+            _options = options.Value;
         }
 
         public async Task<List<ThumbnailResult>> GenerateThumbnailsAsync(Stream inputStream, string originalFileName)

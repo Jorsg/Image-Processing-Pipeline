@@ -25,7 +25,10 @@ builder.Services
         options.MaxProcessedHeight = int.Parse(Environment.GetEnvironmentVariable("MaxProcessedHeight") ?? "1080");
         options.ThumbnailWidth = int.Parse(Environment.GetEnvironmentVariable("ThumbnailWidth") ?? "150");
         options.ThumbnailHeight = int.Parse(Environment.GetEnvironmentVariable("ThumbnailHeight") ?? "150");
-
+    })
+    .Configure<ThumbnailOptions>(options =>
+    {
+        // Uses default values from ThumbnailOptions class
     })
     .AddSingleton(_ =>
     {
