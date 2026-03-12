@@ -15,18 +15,21 @@ namespace az204_image_processor.Functions
         private readonly ImageProcessingOptions _options;
         private readonly IThumbnailService _thumbnailService;
         private readonly IBlobStorageService _blobService;
+        private readonly IComputerVisionService _visionService;
+
 
         public ImageProcessor(ILogger<ImageProcessor> logger,
         IImageResizeService resizeService,
         IOptions<ImageProcessingOptions> options,
         IBlobStorageService blobService,
-        IThumbnailService thumbnailService)
+        IThumbnailService thumbnailService, IComputerVisionService visionService)
         {
             _logger = logger;
             _options = options.Value;
             _resizeService = resizeService;
             _blobService = blobService;
             _thumbnailService = thumbnailService;
+            _visionService = visionService;
         }
 
         [Function("ImageProcessor")]
@@ -93,11 +96,48 @@ namespace az204_image_processor.Functions
                 // Step 5 will add: Table Storage metadata
                 // ──────────────────────────────────────
 
+                if (inputBlob.CanSeek) inputBlob.Position = 0;
+
+                var visionResult = await _visionService.FullAnalysisAsync(inputBlob);
+
+                if (visionResult.Success)
+                {
+                    _logger.LogInformation(
+                       "Vision: \"{Desc}\" | Tags: [{Tags}] | " +
+                       "Text found: {HasText} | " +
+                       "Retries: {Retries} | API time: {Time}ms",
+                       visionResult.Description,
+                       string.Join(", ",
+                           visionResult.Tags
+                               .Take(5)
+                               .Select(t => $"{t.Name}({t.Confidence:P0})")),
+                       !string.IsNullOrEmpty(visionResult.ExtractedText),
+                       visionResult.RetryCount,
+                       visionResult.ApiCalDurationMs);
+
+                    if (!string.IsNullOrEmpty(visionResult.ExtractedText))
+                    {
+                        _logger.LogInformation(
+                               "Extracted text preview: {Text}",
+                               visionResult.ExtractedText.Length > 200
+                                   ? visionResult.ExtractedText[..200] + "..."
+                                   : visionResult.ExtractedText);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        $"Vision analysis failed: {visionResult.ErrorMessage}");
+                    // Don't fail the whole function — images without
+                    // vision results are still valid
+                }
+
+
                 var processingTime = DateTime.UtcNow - startTime;
-               
-               _logger.LogInformation(
-                    $"Total: {name} completed in {processingTime.TotalMilliseconds}ms | " +
-                    $"Processed: {output.ProcessedImage.Length} bytes | Thumbnails: {thumbnails.Count}");
+
+                _logger.LogInformation(
+                     $"Total: {name} completed in {processingTime.TotalMilliseconds}ms | " +
+                     $"Processed: {output.ProcessedImage.Length} bytes | Thumbnails: {thumbnails.Count}");
                 return output;
 
             }
