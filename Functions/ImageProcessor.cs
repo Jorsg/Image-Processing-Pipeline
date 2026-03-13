@@ -16,13 +16,14 @@ namespace az204_image_processor.Functions
         private readonly IThumbnailService _thumbnailService;
         private readonly IBlobStorageService _blobService;
         private readonly IComputerVisionService _visionService;
+        private readonly ITableStorageService _storageService;
 
 
         public ImageProcessor(ILogger<ImageProcessor> logger,
         IImageResizeService resizeService,
         IOptions<ImageProcessingOptions> options,
         IBlobStorageService blobService,
-        IThumbnailService thumbnailService, IComputerVisionService visionService)
+        IThumbnailService thumbnailService, IComputerVisionService visionService, ITableStorageService storageService)
         {
             _logger = logger;
             _options = options.Value;
@@ -30,6 +31,7 @@ namespace az204_image_processor.Functions
             _blobService = blobService;
             _thumbnailService = thumbnailService;
             _visionService = visionService;
+            _storageService = storageService;
         }
 
         [Function("ImageProcessor")]
@@ -132,8 +134,13 @@ namespace az204_image_processor.Functions
                     // vision results are still valid
                 }
 
-
                 var processingTime = DateTime.UtcNow - startTime;
+
+                await _storageService.SaveImageMetadataAsync(name, imageInfo, visionResult,
+                                     processingTime.Milliseconds);
+
+                _logger.LogInformation($"Metadata saved to Table Storage for {name}");
+
 
                 _logger.LogInformation(
                      $"Total: {name} completed in {processingTime.TotalMilliseconds}ms | " +
