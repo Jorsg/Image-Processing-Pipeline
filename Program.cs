@@ -19,6 +19,7 @@ builder.Services
     .AddSingleton<IThumbnailService, ThumbnailService>()
     .AddSingleton<IBlobStorageService, BlobStorageService>()
     .AddSingleton<IComputerVisionService, ComputerVisionService>()
+    .AddSingleton<ITableStorageService, TableStorageService>()
     .Configure<ImageProcessingOptions>(options =>
     {
         options.MaxFileSizeBytes = long.Parse(Environment.GetEnvironmentVariable("MaxFileSizeBytes") ?? "10485760");

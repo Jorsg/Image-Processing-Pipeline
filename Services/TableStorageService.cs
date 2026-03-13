@@ -1,4 +1,7 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using az204_image_processor.Models;
+using Azure;
 using Azure.Data.Tables;
 using Microsoft.Extensions.Logging;
 
@@ -20,37 +23,38 @@ namespace az204_image_processor.Services
 
             _tableClient.CreateIfNotExistsAsync();
         }
-        public Task<ImageMetadataEntity?> GetImageMetadataEntityAsync(string data, string fileName)
+        public async Task<ImageMetadataEntity?> GetImageMetadataEntityAsync(string data, string fileName)
         {
-
-            throw new NotImplementedException();
+            var result = new ImageMetadataEntity();
+            try
+            {
+               result =  await _tableClient.GetEntityAsync<ImageMetadataEntity>(data, fileName);
+                return result;
+            }
+            catch (RequestFailedException ex) when (ex.Status == 404)
+            {                
+                _logger.LogWarning($"ImagaMetadaEntity not fond {ex.Message}");
+                return null;
+            }           
         }
 
-        public Task SaveImageMetadataAsync(string fileName, ImageInfo imageInfo, VisionAnalysisResult visionResult, double processingTimeMs)
+        public async Task SaveImageMetadataAsync(string fileName, ImageInfo imageInfo, VisionAnalysisResult visionResult, double processingTimeMs)
         {
 
             var imageMetadata = new ImageMetadataEntity();
-            imageMetadata.PartitionKey = DateTime.Now.ToString("yyyy-MM-dd");
+            imageMetadata.PartitionKey = DateTime.UtcNow.ToString("yyyy-MM-dd");
             imageMetadata.RowKey = fileName;
-            var imageInf = new ImageInfo
-            {
-                OriginalHeight = imageInfo.OriginalHeight,
-                OriginalWidth = imageInfo.OriginalWidth,
-                FileSizeBytes = imageInfo.FileSizeBytes,
-                Format = imageInfo.Format
-            };
+            imageMetadata.OriginalHeight = imageInfo.OriginalHeight;
+            imageMetadata.OriginalWidth = imageInfo.OriginalWidth;
+            imageMetadata.FileSizeBytes = imageInfo.FileSizeBytes;
+            imageMetadata.Format = imageInfo.Format;
+            imageMetadata.Description = visionResult.Description;
+            imageMetadata.DescriptionConfidence = visionResult.DescriptionConfidence;
+            imageMetadata.ExtractedText = visionResult.ExtractedText;
+            imageMetadata.Tags = JsonSerializer.Serialize(visionResult.Tags);
+            imageMetadata.ProcessingTimeMs = processingTimeMs;
 
-            var vsion_Result = new VisionAnalysisResult
-            {
-              ApiCalDurationMs = visionResult.ApiCalDurationMs,
-              Description = visionResult.Description,
-              Categories = visionResult.Categories,
-              DescriptionConfidence = visionResult.DescriptionConfidence  
-            };
-
-
-
-            throw new NotImplementedException();
+            await _tableClient.UpsertEntityAsync(imageMetadata);
         }
     }
 }
